@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 from google.cloud import speech
 import io
+import wave
+import asyncio
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -23,6 +25,7 @@ class MyBot(commands.Bot):
         print(f"Started: {self.user}")
 
 bot = MyBot()
+sinks: dict[int, voice_recv.WaveSink] = {}
 
 @bot.tree.command(name="join", description="Join VC to listen")
 async def join(interaction: discord.Interaction):
@@ -41,9 +44,11 @@ async def record(interaction: discord.Interaction):
     vc = interaction.guild.voice_client
     if not vc:
         return await interaction.response.send_message("I'm not in a VC.")
-    
-    vc.listen(voice_recv.WaveSink("session.wav"))
-    await interaction.response.send_message("listening...)")
+
+    sink = voice_recv.WaveSink("session.wav")
+    sinks[interaction.guild_id] = sink
+    vc.listen(sink)
+    await interaction.response.send_message("listening...")
 
 @bot.tree.command(name="stop", description="Stop and Transcribe")
 async def stop(interaction: discord.Interaction):
@@ -67,8 +72,9 @@ async def stop(interaction: discord.Interaction):
                 enable_automatic_punctuation=True,
             )
 
-            response = client.recognize(config=config, audio=audio)
-            
+            operation = await asyncio.to_thread(client.long_running_recognize, config=config, audio=audio)
+            response = await asyncio.to_thread(operation.result, timeout=180)
+                        
             final_transcript = ""
             for result in response.results:
                 final_transcript += result.alternatives[0].transcript + "\n"
