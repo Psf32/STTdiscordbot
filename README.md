@@ -73,7 +73,3 @@ Then:
 
 ## Contributing
 Issues and pull requests welcome. Please follow standard contribution etiquette.
-
-## License
-Specify your license here (e.g., MIT) or add a LICENSE file to the repository.
-Designed for educational / personal use
